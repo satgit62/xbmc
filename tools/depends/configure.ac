@@ -129,7 +129,6 @@ AC_ARG_WITH([ffmpeg-options],
   [ffmpeg_options=$withval],
   [ffmpeg_options=default])
 
-
 if test "$use_ccache" = "yes"; then
   AC_CHECK_PROG(HAVE_CCACHE,ccache,"yes","no",)
   if test "x$HAVE_CCACHE" = "xno" ; then
@@ -379,10 +378,14 @@ case $host in
     platform_cflags="-fPIC -DPIC"
     optimize_flags="-Os"
     platform_ldflags="-Wl,-rpath-link=$prefix/$deps_dir/lib"
-    platform_cxxflags="$platform_cflags"
     platform_os="linux"
     meson_system="linux"
     target_platform="wayland gbm"
+    if test "$use_platform" = "webos"; then
+      target_platform=webos
+      platform_cflags="${platform_cflags} -march=armv7-a -mtune=cortex-a9 -mfloat-abi=softfp -mfpu=neon"
+    fi
+    platform_cxxflags="$platform_cflags"
   ;;
   *i686*-linux-gnu*|i*86*-*-linux-uclibc*|x86_64*-linux-gnu*|x86_64-*-linux-uclibc*)
     case $host in
@@ -505,6 +508,8 @@ esac
 
 case $use_platform in
   ios|tvos|macos)
+    ;;
+  webos)
     ;;
   auto)
     ;;
@@ -850,6 +855,7 @@ echo -e "asflags:\t\t $platform_asflags"
 echo -e "cflags:\t\t $platform_cflags"
 echo -e "cxxflags:\t\t $platform_cxxflags"
 echo -e "ldflags:\t\t $platform_ldflags"
+echo -e "target_platform:\t $target_platform"
 echo -e "platform_includes:\t $platform_includes"
 echo -e "ffmpeg options:\t $ffmpeg_options"
 echo -e "prefix:\t\t $prefix"
