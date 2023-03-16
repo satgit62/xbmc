@@ -31,8 +31,11 @@
 
 using namespace KODI::MESSAGING;
 
+// Use this symbol to determine wether we need to use FeedLegacy or not
+static void* legacySMP __attribute__ (( weakref ("_ZN17StarfishMediaAPIs4FeedEPKc") ));
+
 CDVDVideoCodecStarfish::CDVDVideoCodecStarfish(CProcessInfo& processInfo)
-  : CDVDVideoCodec(processInfo), m_starfishMediaAPI(std::make_unique<StarfishMediaAPIs>())
+  : CDVDVideoCodec(processInfo), m_starfishMediaAPI(std::make_unique<StarfishMediaAPIs>()), m_useLegacy(&legacySMP != 0)
 {
 }
 
@@ -344,7 +347,7 @@ bool CDVDVideoCodecStarfish::AddData(const DemuxPacket& packet)
     std::string json;
     CJSONVariantWriter::Write(payload, json, true);
 
-    auto result = m_starfishMediaAPI->Feed(json.c_str());
+    std::string result = m_useLegacy ? FeedLegacy(m_starfishMediaAPI.get(), json.c_str()).get() : m_starfishMediaAPI->Feed(json.c_str());
 
     if (result.find("Ok") != std::string::npos)
       return true;
