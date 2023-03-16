@@ -42,6 +42,9 @@ enum STARFISH_STATES
   STARFISH_STATE_RUNNING,
 };
 
+// Use this symbol to determine wether we need to use FeedLegacy or not
+static void* legacySMP __attribute__ (( weakref ("_ZN17StarfishMediaAPIs4FeedEPKc") ));
+
 /*****************************************************************************/
 /*****************************************************************************/
 CDVDVideoCodecStarfish::CDVDVideoCodecStarfish(CProcessInfo &processInfo)
@@ -52,6 +55,7 @@ CDVDVideoCodecStarfish::CDVDVideoCodecStarfish(CProcessInfo &processInfo)
 , m_fpsDuration(0)
 , m_state(STARFISH_STATE_FLUSHED)
 , m_current_playtime(0)
+, m_useLegacy(&legacySMP != 0)
 {
 }
 
@@ -355,7 +359,8 @@ bool CDVDVideoCodecStarfish::AddData(const DemuxPacket &packet)
     payload["pts"] = DVD_TIME_TO_MSEC(pts) * 1000000;
     payload["esData"] = 1;
 
-    auto result = m_starfishMediaAPI->Feed(payload.dump().c_str());
+    std::string result = m_useLegacy ? FeedLegacy(m_starfishMediaAPI.get(), payload.dump().c_str()).get() : m_starfishMediaAPI->Feed(payload.dump().c_str());
+
     std::size_t found = result.find(std::string("Ok"));
     if (found == std::string::npos) {
       found = result.find(std::string("BufferFull"));
@@ -556,6 +561,8 @@ void CDVDVideoCodecStarfish::PlayerCallback(const int32_t type,
   switch(type) {
     case PF_EVENT_TYPE_STR_STATE_UPDATE__LOADCOMPLETED:
       m_starfishMediaAPI->Play();
+
+      CLog::Log(LOGDEBUG, "Media ID: {}", m_starfishMediaAPI->getMediaID());
       m_state = STARFISH_STATE_FLUSHED;
       break;
   }

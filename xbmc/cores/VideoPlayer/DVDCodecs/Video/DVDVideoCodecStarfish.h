@@ -61,6 +61,7 @@ public:
   // registration
   static std::unique_ptr<CDVDVideoCodec> Create(CProcessInfo& processInfo);
   static bool Register();
+  static std::unique_ptr<char[]> FeedLegacy(StarfishMediaAPIs* api, const char* payload);
 
   // required overrides
   bool Open(CDVDStreamInfo& hints, CDVDCodecOptions& options) override;
@@ -88,6 +89,7 @@ protected:
   std::string m_formatname;
   bool m_opened;
   uint32_t m_fpsDuration;
+  bool m_useLegacy = false;
   bool m_needSecureDecoder = false;
   int m_codecControlFlags;
   int m_state;
