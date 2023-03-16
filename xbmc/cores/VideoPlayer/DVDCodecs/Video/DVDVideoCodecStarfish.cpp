@@ -28,14 +28,12 @@
 
 #include <memory>
 #include <vector>
+#include <dlfcn.h>
 
 using namespace KODI::MESSAGING;
 
-// Use this symbol to determine wether we need to use FeedLegacy or not
-static void* legacySMP __attribute__ (( weakref ("_ZN17StarfishMediaAPIs4FeedEPKc") ));
-
 CDVDVideoCodecStarfish::CDVDVideoCodecStarfish(CProcessInfo& processInfo)
-  : CDVDVideoCodec(processInfo), m_starfishMediaAPI(std::make_unique<StarfishMediaAPIs>()), m_useLegacy(&legacySMP != 0)
+  : CDVDVideoCodec(processInfo), m_starfishMediaAPI(std::make_unique<StarfishMediaAPIs>()), m_useLegacy(dlsym(RTLD_DEFAULT, "_ZN17StarfishMediaAPIs4FeedEPKc") != NULL)
 {
 }
 
@@ -268,6 +266,7 @@ bool CDVDVideoCodecStarfish::OpenInternal(CDVDStreamInfo& hints, CDVDCodecOption
   m_videobuffer.iDisplayHeight = m_hints.height;
   m_videobuffer.stereoMode = m_hints.stereo_mode;
   m_videobuffer.videoBuffer = new CStarfishVideoBuffer(0);
+  dynamic_cast<CStarfishVideoBuffer*>(m_videobuffer.videoBuffer)->mediaID = m_starfishMediaAPI->getMediaID();
 
   m_opened = true;
 
@@ -546,6 +545,9 @@ void CDVDVideoCodecStarfish::PlayerCallback(const int32_t type,
     case PF_EVENT_TYPE_STR_STATE_UPDATE__LOADCOMPLETED:
       m_starfishMediaAPI->Play();
       m_state = StarfishState::FLUSHED;
+      break;
+    case PF_EVENT_TYPE_STR_VIDEO_INFO:
+      dynamic_cast<CStarfishVideoBuffer*>(m_videobuffer.videoBuffer)->mediaVideoData = strValue;
       break;
   }
 }

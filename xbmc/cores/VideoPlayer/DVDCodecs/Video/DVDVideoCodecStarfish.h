@@ -24,6 +24,8 @@ class CStarfishVideoBuffer : public CVideoBuffer
 public:
   explicit CStarfishVideoBuffer(int id) : CVideoBuffer(id) {}
   AVPixelFormat GetFormat() override { return AV_PIX_FMT_NONE; }
+  std::string mediaID;
+  std::string mediaVideoData;
 };
 
 class CDVDVideoCodecStarfish : public CDVDVideoCodec
