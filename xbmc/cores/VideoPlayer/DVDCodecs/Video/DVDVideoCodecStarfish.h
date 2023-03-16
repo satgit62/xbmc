@@ -16,6 +16,7 @@
 #include "utils/Geometry.h"
 
 #include <starfish-media-pipeline/StarfishMediaAPIs.h>
+#include <AcbAPI.h>
 
 #include <atomic>
 #include <deque>
@@ -81,6 +82,7 @@ protected:
 
   void PlayerCallback(const int32_t type, const int64_t numValue, const char *strValue);
   static void PlayerCallback(const int32_t type, const int64_t numValue, const char *strValue, void* data);
+  static void AcbCallback(long acbId, long taskId, long eventType, long appState, long playState, const char *reply);
   std::unique_ptr<StarfishMediaAPIs> m_starfishMediaAPI;
 
   CDVDStreamInfo m_hints;
@@ -94,6 +96,9 @@ protected:
   int m_codecControlFlags;
   int m_state;
   int64_t m_current_playtime;
+
+  bool m_useAcb = false;
+  long m_acbID = 0;
 
   VideoPicture m_videobuffer;
   std::unique_ptr<CBitstreamConverter> m_bitstream;
