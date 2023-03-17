@@ -9,6 +9,7 @@
 #pragma once
 
 #include "cores/VideoPlayer/VideoRenderers/LinuxRendererGLES.h"
+#include <AcbAPI.h>
 
 class CRendererStarfish : public CLinuxRendererGLES
 {
@@ -44,4 +45,8 @@ protected:
   void ManageRenderArea() override;
 
   CRect m_exportedSourceRect, m_exportedDestRect;
+
+  bool m_gotFirstFrame = false;
+  long m_acbID;
+  static void AcbCallback(long acbId, long taskId, long eventType, long appState, long playState, const char *reply);
 };

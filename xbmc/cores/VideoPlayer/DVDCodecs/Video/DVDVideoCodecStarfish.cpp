@@ -217,20 +217,6 @@ bool CDVDVideoCodecStarfish::Open(CDVDStreamInfo &hints, CDVDCodecOptions &optio
   exportedWindowName = dynamic_cast<KODI::WINDOWING::WAYLAND::CWinSystemWaylandWebOS*>(CServiceBroker::GetWinSystem())
                            ->GetExportedWindowName();
 
-  if (exportedWindowName.length() == 0) {
-    m_useAcb = true;
-    m_acbID = AcbAPI_create();
-    // FIXME
-    if (!AcbAPI_initialize(m_acbID, PLAYER_TYPE_MSE, "org.xbmc.kodi", &CDVDVideoCodecStarfish::AcbCallback)) {
-        CLog::Log(LOGERROR, "ACB Init failed!");
-    } else {
-        long tid;
-        // FIXME
-        AcbAPI_setDisplayWindow(m_acbID, 0, 0, 1920, 1080, true, &tid);
-        CLog::Log(LOGDEBUG, "ACB init success");
-    }
-  }
-
   payloadArg["mediaTransportType"] = "BUFFERSTREAM";
   payloadArg["option"]["windowId"] = exportedWindowName;
   // enables the getCurrentPlaytime API
@@ -293,6 +279,8 @@ bool CDVDVideoCodecStarfish::Open(CDVDStreamInfo &hints, CDVDCodecOptions &optio
   m_videobuffer.iDisplayWidth  = m_hints.width;
   m_videobuffer.iDisplayHeight = m_hints.height;
   m_videobuffer.stereoMode = m_hints.stereo_mode;
+  m_videobuffer.videoBuffer = new CStarfishVideoBuffer(0);
+  dynamic_cast<CStarfishVideoBuffer*>(m_videobuffer.videoBuffer)->mediaID = m_starfishMediaAPI->getMediaID(); // videobuffer.videoBuffer.mediaID;
 
   m_opened = true;
 
@@ -319,14 +307,6 @@ void CDVDVideoCodecStarfish::Dispose()
   m_opened = false;
 
   m_starfishMediaAPI->Unload();
-
-  if (m_useAcb)
-  {
-    long tid = 0;
-    AcbAPI_setState(m_acbID, APPSTATE_FOREGROUND, PLAYSTATE_UNLOADED, &tid);
-    AcbAPI_finalize(m_acbID);
-    AcbAPI_destroy(m_acbID);
-  }
 
   m_InstanceGuard.exchange(false);
 }
@@ -371,8 +351,6 @@ bool CDVDVideoCodecStarfish::AddData(const DemuxPacket &packet)
     if (pts > 0)
       m_starfishMediaAPI->Seek(std::to_string(DVD_TIME_TO_MSEC(pts)).c_str());
 
-    long tid;
-    AcbAPI_setState(m_acbID, APPSTATE_FOREGROUND, PLAYSTATE_SEAMLESS_LOADED, &tid);
     m_state = STARFISH_STATE_RUNNING;
   }
 
@@ -451,8 +429,7 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecStarfish::GetPicture(VideoPicture* pVideo
 
   pVideoPicture->videoBuffer = nullptr;
   pVideoPicture->SetParams(m_videobuffer);
-  //pVideoPicture->videoBuffer = m_videobuffer.videoBuffer;
-  pVideoPicture->videoBuffer = new CStarfishVideoBuffer(0);
+  pVideoPicture->videoBuffer = m_videobuffer.videoBuffer;
   pVideoPicture->dts = 0;
   pVideoPicture->pts = DVD_MSEC_TO_TIME(m_starfishMediaAPI->getCurrentPlaytime() / 1000000.0);
 
@@ -585,23 +562,13 @@ void CDVDVideoCodecStarfish::PlayerCallback(const int32_t type,
 
   switch(type) {
     case PF_EVENT_TYPE_STR_STATE_UPDATE__LOADCOMPLETED:
-      if (m_useAcb) {
-          long tid;
-          AcbAPI_setSinkType(m_acbID, SINK_TYPE_AUTO);
-          AcbAPI_setMediaId(m_acbID, m_starfishMediaAPI->getMediaID());
-          AcbAPI_setState(m_acbID, APPSTATE_FOREGROUND, PLAYSTATE_LOADED, &tid);
-      }
-
       m_starfishMediaAPI->Play();
 
       CLog::Log(LOGDEBUG, "Media ID: {}", m_starfishMediaAPI->getMediaID());
       m_state = STARFISH_STATE_FLUSHED;
       break;
     case PF_EVENT_TYPE_STR_VIDEO_INFO:
-      if (m_useAcb) {
-          CLog::Log(LOGDEBUG, "Settings mediavideodata...");
-          AcbAPI_setMediaVideoData(m_acbID, strValue);
-      }
+      dynamic_cast<CStarfishVideoBuffer*>(m_videobuffer.videoBuffer)->mediaVideoData = strValue;
       break;
   }
 
@@ -612,12 +579,4 @@ void CDVDVideoCodecStarfish::PlayerCallback(const int32_t type,
                                             void* data)
 {
   static_cast<CDVDVideoCodecStarfish*>(data)->PlayerCallback(type, numValue, strValue);
-}
-
-void CDVDVideoCodecStarfish::AcbCallback(long acbId, long taskId, long eventType, long appState, long playState, const char *reply) {
-  std::string logstr = "";
-  if (reply != nullptr) {
-    logstr = std::string(reply);
-  }
-  CLog::Log(LOGDEBUG, "acbid: {}, taskid: {}, eventType: {}, appState: {}, playState: {}, reply: {}", acbId, taskId, eventType, appState, playState, logstr);
 }
